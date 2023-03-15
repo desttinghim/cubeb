@@ -63,6 +63,7 @@ pub fn build(b: *std.Build) void {
         cubeb.defineCMacro("RANDOM_PREFIX", "speex");
         cubeb.linkLibrary(speex);
         cubeb.addIncludePath("subprojects");
+        cubeb.step.dependOn(&speex.step);
     } else {
         cubeb.linkSystemLibrary("speex");
     }
