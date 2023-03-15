@@ -13,7 +13,6 @@ pub fn build(b: *std.Build) void {
         .CUBEB_NO_EXPORT = {},
         .CUBEB_DEPRECATED = "__attribute__ ((__deprecated__))",
     });
-    b.getInstallStep().dependOn(&export_header.step);
 
     const cubeb = b.addStaticLibrary(.{
         .name = "cubeb",
@@ -24,6 +23,7 @@ pub fn build(b: *std.Build) void {
     cubeb.step.dependOn(&export_header.step);
     cubeb.addConfigHeader(export_header);
     cubeb.installConfigHeader(export_header, .{ .install_dir = .{ .custom = "exports" } });
+    cubeb.installHeadersDirectory("include/cubeb", "cubeb");
     cubeb.linkLibC();
     cubeb.linkLibCpp();
     cubeb.disable_sanitize_c = true;
@@ -45,7 +45,6 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         });
-        speex.step.dependOn(&export_header.step);
         speex.install();
         speex.force_pic = true;
         speex.disable_sanitize_c = true;
@@ -191,6 +190,4 @@ pub fn build(b: *std.Build) void {
         cubeb.addCSourceFile("src/cubeb_kai.c", &.{});
         cubeb.linkSystemLibrary("kai");
     }
-
-    cubeb.installHeadersDirectory("include/cubeb", "cubeb");
 }
