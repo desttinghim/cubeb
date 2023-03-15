@@ -45,6 +45,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         });
+        speex.install();
         speex.force_pic = true;
         speex.disable_sanitize_c = true;
         speex.linkLibC();
