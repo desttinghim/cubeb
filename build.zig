@@ -87,25 +87,25 @@ pub fn build(b: *std.Build) void {
             .linux => {
                 if (target.getAbi() == .android) {
                     break :opt .{
-                        .use_aaudio = b.option(bool, "use-aaudio", "Use AAudio backend") orelse true,
-                        .use_opensl = b.option(bool, "use-opensl", "Use OpenSL backend") orelse true,
+                        .use_aaudio = b.option(bool, "USE_AAUDIO", "Use AAudio backend") orelse true,
+                        .use_opensl = b.option(bool, "USE_OPENSSL", "Use OpenSL backend") orelse true,
                     };
                 }
                 break :opt .{
-                    .use_pulse = b.option(bool, "use-pulse", "Use Pulse Audio backend") orelse true,
-                    .use_alsa = b.option(bool, "use-alsa", "Use Alsa backend") orelse true,
-                    .use_jack = b.option(bool, "use-jack", "Use Jack backend") orelse true,
+                    .use_pulse = b.option(bool, "USE_PULSE", "Use Pulse Audio backend") orelse true,
+                    .use_alsa = b.option(bool, "USE_ALSA", "Use Alsa backend") orelse true,
+                    .use_jack = b.option(bool, "USE_JACK", "Use Jack backend") orelse true,
                 };
             },
             .windows => {
                 break :opt .{
-                    .use_wasapi = b.option(bool, "use-wasapi", "Use WASAPI backend") orelse true,
-                    .use_winmm = b.option(bool, "use-winmm", "Use winmm backend") orelse true,
+                    .use_wasapi = b.option(bool, "USE_WASAPI", "Use WASAPI backend") orelse true,
+                    .use_winmm = b.option(bool, "USE_WINMM", "Use winmm backend") orelse true,
                 };
             },
             .macos => {
                 break :opt .{
-                    .use_audiounit = b.option(bool, "use-audiounit", "Use AudioUnit backend") orelse true,
+                    .use_audiounit = b.option(bool, "USE_AUDIOUNIT", "Use AudioUnit backend") orelse true,
                 };
             },
             inline else => |t| {
