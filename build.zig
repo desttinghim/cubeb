@@ -13,6 +13,7 @@ pub fn build(b: *std.Build) void {
         .CUBEB_NO_EXPORT = {},
         .CUBEB_DEPRECATED = "__attribute__ ((__deprecated__))",
     });
+    b.getInstallStep().dependOn(&export_header.step);
 
     const cubeb = b.addStaticLibrary(.{
         .name = "cubeb",
@@ -22,7 +23,7 @@ pub fn build(b: *std.Build) void {
     cubeb.install();
     cubeb.step.dependOn(&export_header.step);
     cubeb.addConfigHeader(export_header);
-    cubeb.installConfigHeader(export_header, .{ .install_dir = .{ .custom = "exports" } });
+    cubeb.installConfigHeader(export_header, .{ .install_dir = .header });
     cubeb.installHeadersDirectory("include/cubeb", "cubeb");
     cubeb.linkLibC();
     cubeb.linkLibCpp();
