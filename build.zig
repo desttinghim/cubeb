@@ -20,6 +20,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    cubeb.install();
     cubeb.step.dependOn(&export_header.step);
     cubeb.addConfigHeader(export_header);
     cubeb.installConfigHeader(export_header, .{ .install_dir = .{ .custom = "exports" } });
@@ -66,36 +67,126 @@ pub fn build(b: *std.Build) void {
     }
 
     // TODO implement lazy load libs logic
+    const Opt = struct {
+        use_pulse: bool = false,
+        use_alsa: bool = false,
+        use_jack: bool = false,
+        use_sndio: bool = false,
+        use_aaudio: bool = false,
+        use_audiounit: bool = false,
+        use_wasapi: bool = false,
+        use_winmm: bool = false,
+        use_opensl: bool = false,
+        use_sys_soundcard: bool = false,
+        use_audiotrack: bool = false,
+        use_sun: bool = false,
+        use_kai: bool = false,
+    };
+    const opt: Opt = opt: {
+        switch (target.getOsTag()) {
+            .linux => {
+                if (target.getAbi() == .android) {
+                    break :opt .{
+                        .use_aaudio = b.option(bool, "use-aaudio", "Use AAudio backend") orelse true,
+                        .use_opensl = b.option(bool, "use-opensl", "Use OpenSL backend") orelse true,
+                    };
+                }
+                break :opt .{
+                    .use_pulse = b.option(bool, "use-pulse", "Use Pulse Audio backend") orelse true,
+                    .use_alsa = b.option(bool, "use-alsa", "Use Alsa backend") orelse true,
+                    .use_jack = b.option(bool, "use-jack", "Use Jack backend") orelse true,
+                };
+            },
+            .windows => {
+                break :opt .{
+                    .use_wasapi = b.option(bool, "use-wasapi", "Use WASAPI backend") orelse true,
+                    .use_winmm = b.option(bool, "use-winmm", "Use winmm backend") orelse true,
+                };
+            },
+            .macos => {
+                break :opt .{
+                    .use_audiounit = b.option(bool, "use-audiounit", "Use AudioUnit backend") orelse true,
+                };
+            },
+            inline else => |t| {
+                std.log.err("Unsupported platform {s}", .{@tagName(t)});
+            },
+        }
+    };
 
-    const use_pulse = b.option(bool, "use-pulse", "Use pulse audio") orelse true;
-    cubeb.defineCMacro("USE_PULSE", if (use_pulse) "1" else null);
-    if (use_pulse) {
+    if (opt.use_pulse) {
+        cubeb.defineCMacro("USE_PULSE", if (opt.use_pulse) "1" else null);
         cubeb.linkSystemLibrary("pulse");
         cubeb.addCSourceFile("src/cubeb_pulse.c", &.{});
     }
 
-    const use_alsa = b.option(bool, "use-alsa", "Use alsa audio") orelse true;
-    cubeb.defineCMacro("USE_ALSA", if (use_alsa) "1" else null);
-    if (use_alsa) {
+    if (opt.use_alsa) {
+        cubeb.defineCMacro("USE_ALSA", if (opt.use_alsa) "1" else null);
         cubeb.addCSourceFile("src/cubeb_alsa.c", &.{});
     }
 
-    const use_jack = b.option(bool, "use-jack", "Use jack audio") orelse true;
-    cubeb.defineCMacro("USE_JACK", if (use_jack) "1" else null);
-    if (use_jack) {
-        cubeb.addCSourceFile("src/cubeb_jack.c", &.{});
+    if (opt.use_jack) {
+        cubeb.defineCMacro("USE_JACK", if (opt.use_jack) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_jack.cpp", &.{});
     }
 
-    const use_sndio = b.option(bool, "use-sndio", "Use sndio audio") orelse true;
-    cubeb.defineCMacro("USE_SNDIO", if (use_sndio) "1" else null);
-    if (use_sndio) {
+    if (opt.use_sndio) {
+        cubeb.defineCMacro("USE_SNDIO", if (opt.use_sndio) "1" else null);
         cubeb.addCSourceFile("src/cubeb_sndio.c", &.{});
     }
 
-    const use_aaudio = b.option(bool, "use-aaudio", "Use aaudio audio") orelse false;
-    cubeb.defineCMacro("USE_AAUDIO", if (use_aaudio) "1" else null);
-    if (use_aaudio) {
-        cubeb.addCSourceFile("src/cubeb_aaudio.c", &.{});
+    const aaudio_low_latency = b.option(bool, "CUBEB_AAUDIO_LOW_LATENCY", "Use low latency") orelse false;
+    if (opt.use_aaudio) {
+        cubeb.defineCMacro("USE_AAUDIO", if (opt.use_aaudio) "1" else null);
+        cubeb.defineCMacro("CUBEB_AAUDIO_LOW_LATENCY", if (aaudio_low_latency) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_aaudio.cpp", &.{});
+    }
+
+    if (opt.use_audiounit) {
+        cubeb.defineCMacro("use_audiounit", if (opt.use_audiounit) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_audiounit.cpp", &.{});
+        cubeb.addCSourceFile("src/cubeb_osx_run_loop.cpp", &.{});
+        cubeb.linkFramework("AudioUnit");
+        cubeb.linkFramework("CoreAudio");
+        cubeb.linkFramework("CoreServices");
+    }
+
+    if (opt.use_wasapi) {
+        cubeb.defineCMacro("USE_WASAPI", if (opt.use_wasapi) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_wasapi.c", &.{});
+        cubeb.linkSystemLibrary("avrt");
+        cubeb.linkSystemLibrary("ole32");
+        cubeb.linkSystemLibrary("ksuser");
+    }
+
+    if (opt.use_winmm) {
+        cubeb.defineCMacro("USE_WINMM", if (opt.use_winmm) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_winmm.c", &.{});
+        cubeb.linkSystemLibrary("winmm");
+    }
+
+    if (opt.use_opensl) {
+        cubeb.defineCMacro("USE_OPENSL", if (opt.use_opensl) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_opensl.c", &.{});
+        cubeb.addCSourceFile("src/cubeb-jni.cpp", &.{});
+        cubeb.linkSystemLibrary("OpenSLES");
+    }
+
+    // cubeb.defineCMacro("USE_OSS", if (opt.use_oss) "1" else null);
+    // if (opt.use_oss) {
+    //     cubeb.addCSourceFile("src/cubeb_oss.c", &.{});
+    //     cubeb.linkSystemLibrary("oss");
+    // }
+
+    if (opt.use_sun) {
+        cubeb.defineCMacro("USE_SUN", if (opt.use_sun) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_sun.c", &.{});
+    }
+
+    if (opt.use_kai) {
+        cubeb.defineCMacro("USE_KAI", if (opt.use_kai) "1" else null);
+        cubeb.addCSourceFile("src/cubeb_kai.c", &.{});
+        cubeb.linkSystemLibrary("kai");
     }
 
     cubeb.installHeadersDirectory("include/cubeb", "cubeb");
